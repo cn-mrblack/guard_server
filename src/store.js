@@ -2,8 +2,8 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
-const kvUrl = process.env.KV_REST_API_URL || "";
-const kvToken = process.env.KV_REST_API_TOKEN || "";
+const kvUrl = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || "";
+const kvToken = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || "";
 const kvEnabled = Boolean(kvUrl && kvToken);
 
 const dataDir = process.env.DATA_DIR
@@ -260,4 +260,5 @@ export async function hasSeenNonce(deviceId, nonce, timestampMs) {
   fs.writeFileSync(nonceCacheFile, JSON.stringify(nonces), "utf8");
   return false;
 }
+
 
