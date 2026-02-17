@@ -86,12 +86,12 @@
       font-size: 12px;
       line-height: 1.45;
     }
-    #trackCanvas {
+    #trackMap {
       width: 100%;
-      height: 360px;
+      height: 420px;
       border: 1px solid var(--line);
       border-radius: 12px;
-      background: linear-gradient(180deg, #f9fbff, #f3f8ff);
+      overflow: hidden;
     }
     .tip { font-size: 13px; color: var(--muted); margin-top: 6px; }
     @media (max-width: 920px) {
@@ -99,6 +99,7 @@
       .grid { grid-template-columns: 1fr; }
     }
   </style>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 </head>
 <body>
   <div class="wrap">
@@ -154,7 +155,7 @@
         <select id="trackDevice"></select>
         <button id="loadTrack" class="btn2">加载轨迹</button>
       </div>
-      <canvas id="trackCanvas" width="1000" height="360"></canvas>
+      <div id="trackMap" aria-label="track map"></div>
       <div id="trackInfo" class="tip">暂无轨迹数据</div>
     </div>
 
@@ -177,6 +178,7 @@
       </div>
     </div>
   </div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="/admin.js"></script>
 </body>
 </html>

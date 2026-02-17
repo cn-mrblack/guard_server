@@ -18,204 +18,81 @@
   const locationsData = document.getElementById("locationsData");
   const eventsData = document.getElementById("eventsData");
 
-  const canvas = document.getElementById("trackCanvas");
-  const ctx = canvas.getContext("2d");
-  const TILE_SIZE = 256;
-  const OSM_TILE = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+  const mapEl = document.getElementById("trackMap");
+  let map = null;
+  let trackLine = null;
+  let pointMarkers = [];
 
-  let renderToken = 0;
-  let refreshTimer = null;
-  let refreshing = false;
+  function ensureMap() {
+    if (map) {
+      return map;
+    }
 
-  keyInput.value = localStorage.getItem("admin_key") || "";
-  autoRefreshEnabledEl.checked = (localStorage.getItem("admin_auto_enabled") || "1") === "1";
-  autoRefreshSecEl.value = localStorage.getItem("admin_auto_sec") || "15";
+    map = L.map(mapEl, {
+      zoomControl: true,
+      attributionControl: true
+    }).setView([39.9, 116.4], 10);
 
-  function setStatus(el, text, isError) {
-    el.textContent = text;
-    el.classList.toggle("err", Boolean(isError));
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "&copy; OpenStreetMap contributors"
+    }).addTo(map);
+
+    return map;
   }
 
-  function pretty(x) {
-    return JSON.stringify(x, null, 2);
-  }
+  function clearTrack() {
+    if (trackLine) {
+      trackLine.remove();
+      trackLine = null;
+    }
 
-  async function requestJson(url, adminKey, options) {
-    const opt = options || {};
-    const headers = Object.assign({}, opt.headers || {}, { "x-admin-key": adminKey });
-    const rsp = await fetch(url, Object.assign({}, opt, { headers }));
-    const data = await rsp.json().catch(function () {
-      return {};
+    pointMarkers.forEach(function (m) {
+      m.remove();
     });
-    if (!rsp.ok) {
-      throw new Error(data.error || ("HTTP_" + rsp.status));
-    }
-    return data;
+    pointMarkers = [];
   }
 
-  function getAdminKey() {
-    return keyInput.value.trim();
-  }
+  function drawTrack(points) {
+    ensureMap();
+    clearTrack();
 
-  function lonToWorldX(lon, zoom) {
-    const n = Math.pow(2, zoom) * TILE_SIZE;
-    return ((Number(lon) + 180) / 360) * n;
-  }
-
-  function latToWorldY(lat, zoom) {
-    const clamped = Math.max(-85.05112878, Math.min(85.05112878, Number(lat)));
-    const rad = (clamped * Math.PI) / 180;
-    const n = Math.pow(2, zoom) * TILE_SIZE;
-    const merc = Math.log(Math.tan(Math.PI / 4 + rad / 2));
-    return (n / 2) - (n * merc) / (2 * Math.PI);
-  }
-
-  function chooseZoom(points, width, height, pad) {
-    if (points.length < 2) {
-      return 15;
-    }
-
-    const lons = points.map(function (p) { return Number(p.lon); });
-    const lats = points.map(function (p) { return Number(p.lat); });
-    const minLon = Math.min.apply(null, lons);
-    const maxLon = Math.max.apply(null, lons);
-    const minLat = Math.min.apply(null, lats);
-    const maxLat = Math.max.apply(null, lats);
-
-    for (let z = 18; z >= 2; z -= 1) {
-      const x0 = lonToWorldX(minLon, z);
-      const x1 = lonToWorldX(maxLon, z);
-      const y0 = latToWorldY(maxLat, z);
-      const y1 = latToWorldY(minLat, z);
-      if ((x1 - x0) <= (width - pad * 2) && (y1 - y0) <= (height - pad * 2)) {
-        return z;
-      }
-    }
-    return 2;
-  }
-
-  function tileUrl(z, x, y) {
-    return OSM_TILE.replace("{z}", String(z)).replace("{x}", String(x)).replace("{y}", String(y));
-  }
-
-  function loadTile(url) {
-    return new Promise(function (resolve) {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = function () { resolve({ ok: true, img: img }); };
-      img.onerror = function () { resolve({ ok: false, img: null }); };
-      img.src = url;
-    });
-  }
-
-  async function drawTrack(points) {
-    const token = ++renderToken;
-    const w = canvas.width;
-    const h = canvas.height;
-    const pad = 24;
-
-    ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = "#f7fbff";
-    ctx.fillRect(0, 0, w, h);
-
-    if (!points || points.length < 2) {
-      ctx.fillStyle = "#60708f";
-      ctx.font = "14px sans-serif";
-      ctx.fillText("轨迹点不足（至少2个）", 20, 28);
+    if (!points || points.length < 1) {
       return;
     }
 
-    const zoom = chooseZoom(points, w, h, pad);
-    const nTiles = Math.pow(2, zoom);
+    const latLngs = points.map(function (p) {
+      return [Number(p.lat), Number(p.lon)];
+    });
 
-    const lons = points.map(function (p) { return Number(p.lon); });
-    const lats = points.map(function (p) { return Number(p.lat); });
-    const minLon = Math.min.apply(null, lons);
-    const maxLon = Math.max.apply(null, lons);
-    const minLat = Math.min.apply(null, lats);
-    const maxLat = Math.max.apply(null, lats);
+    trackLine = L.polyline(latLngs, {
+      color: "#174ea6",
+      weight: 4,
+      opacity: 0.9
+    }).addTo(map);
 
-    const minX = lonToWorldX(minLon, zoom);
-    const maxX = lonToWorldX(maxLon, zoom);
-    const minY = latToWorldY(maxLat, zoom);
-    const maxY = latToWorldY(minLat, zoom);
+    points.forEach(function (p, i) {
+      const isStart = i === 0;
+      const isEnd = i === points.length - 1;
+      const marker = L.circleMarker([Number(p.lat), Number(p.lon)], {
+        radius: isStart || isEnd ? 6 : 4,
+        color: "#ffffff",
+        weight: 1,
+        fillColor: isStart ? "#0a7f5a" : (isEnd ? "#b3261e" : "#1f3e7c"),
+        fillOpacity: 0.95
+      }).addTo(map);
 
-    const centerX = (minX + maxX) / 2;
-    const centerY = (minY + maxY) / 2;
-    const topLeftX = centerX - w / 2;
-    const topLeftY = centerY - h / 2;
+      const t = p.collectedAt || p.serverReceivedAt || "-";
+      marker.bindPopup("<b>" + (p.deviceId || "-") + "</b><br/>" + t + "<br/>lat: " + p.lat + "<br/>lon: " + p.lon);
+      pointMarkers.push(marker);
+    });
 
-    const startTileX = Math.floor(topLeftX / TILE_SIZE);
-    const endTileX = Math.floor((topLeftX + w) / TILE_SIZE);
-    const startTileY = Math.floor(topLeftY / TILE_SIZE);
-    const endTileY = Math.floor((topLeftY + h) / TILE_SIZE);
-
-    const tileJobs = [];
-    for (let tx = startTileX; tx <= endTileX; tx += 1) {
-      for (let ty = startTileY; ty <= endTileY; ty += 1) {
-        if (ty < 0 || ty >= nTiles) {
-          continue;
-        }
-        const wrappedX = ((tx % nTiles) + nTiles) % nTiles;
-        const url = tileUrl(zoom, wrappedX, ty);
-        tileJobs.push({ tx: tx, ty: ty, promise: loadTile(url) });
-      }
-    }
-
-    const tileResults = await Promise.all(tileJobs.map(function (t) { return t.promise; }));
-    if (token !== renderToken) {
+    if (latLngs.length === 1) {
+      map.setView(latLngs[0], 16);
       return;
     }
 
-    tileJobs.forEach(function (job, i) {
-      const result = tileResults[i];
-      const drawX = Math.round(job.tx * TILE_SIZE - topLeftX);
-      const drawY = Math.round(job.ty * TILE_SIZE - topLeftY);
-      if (result.ok) {
-        ctx.drawImage(result.img, drawX, drawY, TILE_SIZE, TILE_SIZE);
-      } else {
-        ctx.fillStyle = "#eef3fb";
-        ctx.fillRect(drawX, drawY, TILE_SIZE, TILE_SIZE);
-      }
-    });
-
-    function px(lon) {
-      return lonToWorldX(lon, zoom) - topLeftX;
-    }
-
-    function py(lat) {
-      return latToWorldY(lat, zoom) - topLeftY;
-    }
-
-    ctx.strokeStyle = "#174ea6";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    points.forEach(function (p, i) {
-      const x = px(p.lon);
-      const y = py(p.lat);
-      if (i === 0) {
-        ctx.moveTo(x, y);
-      } else {
-        ctx.lineTo(x, y);
-      }
-    });
-    ctx.stroke();
-
-    points.forEach(function (p, i) {
-      const x = px(p.lon);
-      const y = py(p.lat);
-      ctx.fillStyle = i === 0 ? "#0a7f5a" : (i === points.length - 1 ? "#b3261e" : "#1f3e7c");
-      ctx.beginPath();
-      ctx.arc(x, y, i === 0 || i === points.length - 1 ? 5 : 3, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-    });
-
-    ctx.fillStyle = "rgba(23,32,51,.8)";
-    ctx.font = "12px sans-serif";
-    ctx.fillText("Map data © OpenStreetMap contributors", 12, h - 12);
+    map.fitBounds(trackLine.getBounds(), { padding: [24, 24] });
   }
 
   async function loadTrack() {
@@ -237,7 +114,7 @@
       const points = (data.items || []).filter(function (x) {
         return Number.isFinite(Number(x.lat)) && Number.isFinite(Number(x.lon));
       });
-      await drawTrack(points);
+      drawTrack(points);
       if (points.length) {
         const startTime = points[0].collectedAt || points[0].serverReceivedAt || "-";
         const endTime = points[points.length - 1].collectedAt || points[points.length - 1].serverReceivedAt || "-";

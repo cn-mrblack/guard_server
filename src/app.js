@@ -32,7 +32,7 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'", "https:", "'unsafe-inline'"],
         styleSrc: ["'self'", "https:", "'unsafe-inline'"],
         imgSrc: ["'self'", "data:", "https://tile.openstreetmap.org"],
         connectSrc: ["'self'"]
