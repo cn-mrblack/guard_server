@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Server Admin</title>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --panel: #fff;
+      --ink: #172033;
+      --muted: #60708f;
+      --line: #dbe2f0;
+      --accent: #0a7f5a;
+      --accent2: #2b5cb8;
+      --danger: #b3261e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: "IBM Plex Sans", "Noto Sans SC", "PingFang SC", sans-serif;
+      background:
+        radial-gradient(90rem 35rem at 10% -5%, #d6f4e9 0%, transparent 55%),
+        radial-gradient(80rem 28rem at 90% 0%, #dbe7ff 0%, transparent 45%),
+        var(--bg);
+    }
+    .wrap { max-width: 1160px; margin: 0 auto; padding: 22px 14px 36px; }
+    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: 0 10px 20px rgba(19,34,68,.06);
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+    h1 { margin: 0 0 8px; font-size: 24px; }
+    h3 { margin: 0 0 8px; font-size: 16px; }
+    input, button, select {
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      padding: 9px 12px;
+      font: inherit;
+      background: #fff;
+      color: var(--ink);
+    }
+    input { min-width: 220px; }
+    button {
+      cursor: pointer;
+      border: none;
+      color: #fff;
+      background: linear-gradient(120deg, var(--accent), #0b9b6c);
+      font-weight: 600;
+    }
+    .btn2 { background: linear-gradient(120deg, var(--accent2), #4a75c5); }
+    .status { font-size: 14px; color: var(--muted); min-height: 20px; }
+    .status.err { color: var(--danger); }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: #fff;
+    }
+    .k { font-size: 13px; color: var(--muted); }
+    .v { font-size: 26px; font-weight: 700; margin-top: 4px; }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    pre {
+      margin: 0;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px;
+      background: #fcfdff;
+      max-height: 260px;
+      overflow: auto;
+      font-family: "JetBrains Mono", Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    #trackCanvas {
+      width: 100%;
+      height: 360px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: linear-gradient(180deg, #f9fbff, #f3f8ff);
+    }
+    .tip { font-size: 13px; color: var(--muted); margin-top: 6px; }
+    @media (max-width: 920px) {
+      .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>管理页面</h1>
+
+    <div class="panel">
+      <div class="row">
+        <label for="adminKey">ADMIN_KEY</label>
+        <input id="adminKey" type="password" placeholder="输入 server/.env 中的 ADMIN_KEY">
+        <button id="saveKey">保存</button>
+        <button id="refresh" class="btn2">刷新</button>
+        <label for="autoRefreshEnabled">自动刷新</label>
+        <input id="autoRefreshEnabled" type="checkbox" checked style="min-width:auto;width:18px;height:18px;padding:0;">
+        <select id="autoRefreshSec">
+          <option value="5">5秒</option>
+          <option value="10">10秒</option>
+          <option value="15" selected>15秒</option>
+          <option value="30">30秒</option>
+          <option value="60">60秒</option>
+        </select>
+      </div>
+      <div id="status" class="status"></div>
+    </div>
+
+    <div class="panel">
+      <h3>设备注册</h3>
+      <div class="row">
+        <input id="newDeviceId" type="text" placeholder="deviceId，例如 my-phone-01">
+        <input id="newDeviceSecret" type="text" placeholder="device secret">
+        <button id="registerBtn">注册设备</button>
+      </div>
+      <div id="registerStatus" class="status"></div>
+    </div>
+
+    <div class="panel cards">
+      <div class="card"><div class="k">设备数</div><div id="cDevices" class="v">-</div></div>
+      <div class="card"><div class="k">最近心跳</div><div id="cHeartbeats" class="v">-</div></div>
+      <div class="card"><div class="k">最近位置</div><div id="cLocations" class="v">-</div></div>
+      <div class="card"><div class="k">最近事件</div><div id="cEvents" class="v">-</div></div>
+    </div>
+
+    <div class="panel">
+      <h3>位置轨迹</h3>
+      <div class="row">
+        <label for="limit">最近条数</label>
+        <select id="limit">
+          <option value="20">20</option>
+          <option value="50">50</option>
+          <option value="100" selected>100</option>
+          <option value="200">200</option>
+        </select>
+        <label for="trackDevice">设备</label>
+        <select id="trackDevice"></select>
+        <button id="loadTrack" class="btn2">加载轨迹</button>
+      </div>
+      <canvas id="trackCanvas" width="1000" height="360"></canvas>
+      <div id="trackInfo" class="tip">暂无轨迹数据</div>
+    </div>
+
+    <div class="grid">
+      <div class="panel">
+        <h3>设备列表</h3>
+        <pre id="devicesData">[]</pre>
+      </div>
+      <div class="panel">
+        <h3>最新心跳</h3>
+        <pre id="heartbeatsData">[]</pre>
+      </div>
+      <div class="panel">
+        <h3>最新位置</h3>
+        <pre id="locationsData">[]</pre>
+      </div>
+      <div class="panel">
+        <h3>最新事件</h3>
+        <pre id="eventsData">[]</pre>
+      </div>
+    </div>
+  </div>
+  <script src="/admin.js"></script>
+</body>
+</html>
