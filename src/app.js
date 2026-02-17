@@ -42,7 +42,7 @@ app.use(
         scriptSrc: ["'self'", "https:", "'unsafe-inline'"],
         styleSrc: ["'self'", "https:", "'unsafe-inline'"],
         imgSrc: ["'self'", "data:", "https://tile.openstreetmap.org"],
-        connectSrc: ["'self'"]
+        connectSrc: ["'self'", "https://nominatim.openstreetmap.org"]
       }
     }
   })
