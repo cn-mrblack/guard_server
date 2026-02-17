@@ -1,20 +1,2 @@
 [
-  {
-    "deviceId": "ttt1",
-    "secretHash": "f78f5f72a429a395c78783bf39527d19b3e86a0b222dac130fa8a47d207da475",
-    "createdAt": "2026-02-17T09:05:20.191Z",
-    "updatedAt": "2026-02-17T09:05:20.191Z"
-  },
-  {
-    "deviceId": "submit-check-20260217172029",
-    "secretHash": "2c9fc1fdbc2ddbfc0a837d27eeb493168d6d5c6b6ee99ad8610fbf2d10d50909",
-    "createdAt": "2026-02-17T09:20:30.043Z",
-    "updatedAt": "2026-02-17T09:20:30.043Z"
-  },
-  {
-    "deviceId": "a1",
-    "secretHash": "f55ff16f66f43360266b95db6f8fec01d76031054306ae4a4b380598f6cfd114",
-    "createdAt": "2026-02-17T10:00:39.991Z",
-    "updatedAt": "2026-02-17T10:00:39.991Z"
-  }
 ]
