@@ -22,6 +22,38 @@
   let map = null;
   let trackLine = null;
   let pointMarkers = [];
+  let refreshTimer = null;
+  let refreshing = false;
+
+  keyInput.value = localStorage.getItem("admin_key") || "";
+  autoRefreshEnabledEl.checked = (localStorage.getItem("admin_auto_enabled") || "1") === "1";
+  autoRefreshSecEl.value = localStorage.getItem("admin_auto_sec") || "15";
+
+  function setStatus(el, text, isError) {
+    el.textContent = text;
+    el.classList.toggle("err", Boolean(isError));
+  }
+
+  function pretty(x) {
+    return JSON.stringify(x, null, 2);
+  }
+
+  async function requestJson(url, adminKey, options) {
+    const opt = options || {};
+    const headers = Object.assign({}, opt.headers || {}, { "x-admin-key": adminKey });
+    const rsp = await fetch(url, Object.assign({}, opt, { headers }));
+    const data = await rsp.json().catch(function () {
+      return {};
+    });
+    if (!rsp.ok) {
+      throw new Error(data.error || ("HTTP_" + rsp.status));
+    }
+    return data;
+  }
+
+  function getAdminKey() {
+    return keyInput.value.trim();
+  }
 
   function ensureMap() {
     if (map) {
@@ -92,7 +124,7 @@
       return;
     }
 
-    map.fitBounds(trackLine.getBounds(), { padding: [24, 24] });
+    map.fitBounds(trackLine.getBounds(), { padding: [24, 24], maxZoom: 18 });
   }
 
   async function loadTrack() {
@@ -100,11 +132,11 @@
     const deviceId = trackDeviceEl.value;
     const limit = Number(limitEl.value || 100);
     if (!adminKey) {
-      setStatus(statusEl, "è¯·å…ˆè¾“å…¥ ADMIN_KEY", true);
+      setStatus(statusEl, "ÇëÏÈÊäÈë ADMIN_KEY", true);
       return;
     }
     if (!deviceId) {
-      trackInfoEl.textContent = "è¯·å…ˆé€‰æ‹©è®¾å¤‡";
+      trackInfoEl.textContent = "ÇëÏÈÑ¡ÔñÉè±¸";
       return;
     }
 
@@ -118,12 +150,12 @@
       if (points.length) {
         const startTime = points[0].collectedAt || points[0].serverReceivedAt || "-";
         const endTime = points[points.length - 1].collectedAt || points[points.length - 1].serverReceivedAt || "-";
-        trackInfoEl.textContent = "è®¾å¤‡ " + deviceId + "ï¼Œè½¨è¿¹ç‚¹ " + points.length + "ï¼Œèµ·å§‹ " + startTime + "ï¼Œç»“æŸ " + endTime;
+        trackInfoEl.textContent = "Éè±¸ " + deviceId + "£¬¹ì¼£µã " + points.length + "£¬ÆğÊ¼ " + startTime + "£¬½áÊø " + endTime;
       } else {
-        trackInfoEl.textContent = "è¯¥è®¾å¤‡æš‚æ— ä½ç½®æ•°æ®";
+        trackInfoEl.textContent = "¸ÃÉè±¸ÔİÎŞÎ»ÖÃÊı¾İ";
       }
     } catch (e) {
-      trackInfoEl.textContent = "è½¨è¿¹åŠ è½½å¤±è´¥: " + e.message;
+      trackInfoEl.textContent = "¹ì¼£¼ÓÔØÊ§°Ü: " + e.message;
     }
   }
 
@@ -136,12 +168,12 @@
     const adminKey = getAdminKey();
     const limit = Number(limitEl.value || 100);
     if (!adminKey) {
-      setStatus(statusEl, "è¯·å…ˆè¾“å…¥ ADMIN_KEY", true);
+      setStatus(statusEl, "ÇëÏÈÊäÈë ADMIN_KEY", true);
       refreshing = false;
       return;
     }
 
-    setStatus(statusEl, "åŠ è½½ä¸­...", false);
+    setStatus(statusEl, "¼ÓÔØÖĞ...", false);
     try {
       const results = await Promise.all([
         requestJson("/api/v1/admin/overview?limit=" + limit, adminKey),
@@ -183,9 +215,9 @@
       }
 
       await loadTrack();
-      setStatus(statusEl, "åˆ·æ–°æˆåŠŸ: " + new Date().toLocaleString(), false);
+      setStatus(statusEl, "Ë¢ĞÂ³É¹¦: " + new Date().toLocaleString(), false);
     } catch (e) {
-      setStatus(statusEl, "åˆ·æ–°å¤±è´¥: " + e.message, true);
+      setStatus(statusEl, "Ë¢ĞÂÊ§°Ü: " + e.message, true);
     } finally {
       refreshing = false;
     }
@@ -196,11 +228,11 @@
     const deviceId = document.getElementById("newDeviceId").value.trim();
     const secret = document.getElementById("newDeviceSecret").value.trim();
     if (!adminKey) {
-      setStatus(registerStatusEl, "è¯·å…ˆè¾“å…¥ ADMIN_KEY", true);
+      setStatus(registerStatusEl, "ÇëÏÈÊäÈë ADMIN_KEY", true);
       return;
     }
     if (!deviceId || !secret) {
-      setStatus(registerStatusEl, "deviceId å’Œ secret ä¸èƒ½ä¸ºç©º", true);
+      setStatus(registerStatusEl, "deviceId ºÍ secret ²»ÄÜÎª¿Õ", true);
       return;
     }
 
@@ -210,10 +242,10 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ deviceId: deviceId, secret: secret })
       });
-      setStatus(registerStatusEl, "æ³¨å†ŒæˆåŠŸ: " + deviceId, false);
+      setStatus(registerStatusEl, "×¢²á³É¹¦: " + deviceId, false);
       await refreshAll();
     } catch (e) {
-      setStatus(registerStatusEl, "æ³¨å†Œå¤±è´¥: " + e.message, true);
+      setStatus(registerStatusEl, "×¢²áÊ§°Ü: " + e.message, true);
     }
   }
 
@@ -240,7 +272,7 @@
 
   document.getElementById("saveKey").addEventListener("click", function () {
     localStorage.setItem("admin_key", getAdminKey());
-    setStatus(statusEl, "ADMIN_KEY å·²ä¿å­˜åˆ°æµè§ˆå™¨æœ¬åœ°", false);
+    setStatus(statusEl, "ADMIN_KEY ÒÑ±£´æµ½ä¯ÀÀÆ÷±¾µØ", false);
   });
   document.getElementById("refresh").addEventListener("click", refreshAll);
   document.getElementById("loadTrack").addEventListener("click", loadTrack);
