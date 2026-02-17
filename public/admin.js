@@ -24,6 +24,7 @@
   let pointMarkers = [];
   let refreshTimer = null;
   let refreshing = false;
+  const addressCache = new Map();
 
   keyInput.value = localStorage.getItem("admin_key") || "";
   autoRefreshEnabledEl.checked = (localStorage.getItem("admin_auto_enabled") || "1") === "1";
@@ -85,6 +86,37 @@
     pointMarkers = [];
   }
 
+  function makeKey(lat, lon) {
+    return `${Number(lat).toFixed(6)},${Number(lon).toFixed(6)}`;
+  }
+
+  async function reverseGeocode(lat, lon) {
+    if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lon))) {
+      return null;
+    }
+    const key = makeKey(lat, lon);
+    if (addressCache.has(key)) {
+      return addressCache.get(key);
+    }
+
+    try {
+      const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`;
+      const rsp = await fetch(url, {
+        headers: { "Accept-Language": "zh-CN", "User-Agent": "guard-admin" }
+      });
+      if (!rsp.ok) {
+        throw new Error(`HTTP_${rsp.status}`);
+      }
+      const data = await rsp.json();
+      const addr = data.display_name || null;
+      addressCache.set(key, addr);
+      return addr;
+    } catch (err) {
+      console.error("reverseGeocode", err);
+      return null;
+    }
+  }
+
   function drawTrack(points) {
     ensureMap();
     clearTrack();
@@ -121,10 +153,9 @@
 
     if (latLngs.length === 1) {
       map.setView(latLngs[0], 16);
-      return;
+    } else {
+      map.fitBounds(trackLine.getBounds(), { padding: [24, 24], maxZoom: 18 });
     }
-
-    map.fitBounds(trackLine.getBounds(), { padding: [24, 24], maxZoom: 18 });
   }
 
   async function loadTrack() {
@@ -148,9 +179,17 @@
       });
       drawTrack(points);
       if (points.length) {
-        const startTime = points[0].collectedAt || points[0].serverReceivedAt || "-";
-        const endTime = points[points.length - 1].collectedAt || points[points.length - 1].serverReceivedAt || "-";
-        trackInfoEl.textContent = "设备 " + deviceId + "，轨迹点 " + points.length + "，起始 " + startTime + "，结束 " + endTime;
+        const startPoint = points[0];
+        const endPoint = points[points.length - 1];
+        const startTime = startPoint.collectedAt || startPoint.serverReceivedAt || "-";
+        const endTime = endPoint.collectedAt || endPoint.serverReceivedAt || "-";
+        const [startAddr, endAddr] = await Promise.all([
+          reverseGeocode(startPoint.lat, startPoint.lon),
+          reverseGeocode(endPoint.lat, endPoint.lon)
+        ]);
+        const startSuffix = startAddr ? `（${startAddr}）` : "";
+        const endSuffix = endAddr ? `（${endAddr}）` : "";
+        trackInfoEl.textContent = `设备 ${deviceId}，轨迹点 ${points.length}，起始 ${startTime}${startSuffix}，结束 ${endTime}${endSuffix}`;
       } else {
         trackInfoEl.textContent = "该设备暂无位置数据";
       }
