@@ -28,9 +28,12 @@ const publicDir = path.resolve(__dirname, "..", "public");
 
 const app = express();
 
-// 设置默认字符编码为UTF-8
+// 设置默认字符编码为UTF-8，只对API请求设置JSON内容类型
 app.use((req, res, next) => {
-  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  // 只对API路径设置JSON内容类型
+  if (req.path.startsWith('/api/')) {
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  }
   next();
 });
 
