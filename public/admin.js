@@ -67,8 +67,7 @@
     }).setView([39.9, 116.4], 10);
 
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      attribution: "&copy; OpenStreetMap contributors"
+      maxZoom: 19
     }).addTo(map);
 
     return map;
