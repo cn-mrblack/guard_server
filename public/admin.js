@@ -141,7 +141,7 @@
     }
   }
 
-  function drawTrack(points) {
+  async function drawTrack(points) {
     ensureMap();
     clearTrack();
 
@@ -159,7 +159,12 @@
       opacity: 0.9
     }).addTo(map);
 
-    points.forEach(async function (p, i) {
+    // 先获取所有地址信息，然后再绘制标记
+    const addressPromises = points.map(p => reverseGeocode(p.lat, p.lon));
+    const addresses = await Promise.all(addressPromises);
+
+    // 绘制标记并绑定地址信息
+    points.forEach(function (p, i) {
       const isStart = i === 0;
       const isEnd = i === points.length - 1;
       const marker = L.circleMarker([Number(p.lat), Number(p.lon)], {
@@ -171,16 +176,8 @@
       }).addTo(map);
 
       const t = p.collectedAt || p.serverReceivedAt || "-";
-      // 尝试获取地址信息
-      let address = "";
-      try {
-        const addr = await reverseGeocode(p.lat, p.lon);
-        if (addr) {
-          address = "<br/>地址: " + addr;
-        }
-      } catch (err) {
-        console.error("获取地址失败", err);
-      }
+      const addr = addresses[i];
+      const address = addr ? "<br/>地址: " + addr : "";
       
       marker.bindPopup("<b>" + (p.deviceId || "-") + "</b><br/>" + t + "<br/>lat: " + p.lat + "<br/>lon: " + p.lon + address);
       pointMarkers.push(marker);
@@ -212,7 +209,7 @@
       const points = (data.items || []).filter(function (x) {
         return Number.isFinite(Number(x.lat)) && Number.isFinite(Number(x.lon));
       });
-      drawTrack(points);
+      await drawTrack(points);
       if (points.length) {
         const startPoint = points[0];
         const endPoint = points[points.length - 1];
