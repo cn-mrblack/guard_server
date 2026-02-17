@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "anti-loss-server",
   "version": "1.0.0",
   "private": true,
@@ -14,5 +14,8 @@
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
     "swagger-ui-express": "^5.0.1"
+  },
+  "devDependencies": {
+    "vercel": "^50.18.0"
   }
 }
