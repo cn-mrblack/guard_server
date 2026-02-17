@@ -1,8 +1,10 @@
-﻿import crypto from "node:crypto";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
-const dataDir = path.resolve("data");
+const dataDir = process.env.DATA_DIR
+  ? path.resolve(process.env.DATA_DIR)
+  : (process.env.VERCEL ? path.join('/tmp', 'anti-loss-data') : path.resolve('data'));
 const devicesFile = path.join(dataDir, "devices.json");
 const locationsFile = path.join(dataDir, "locations.ndjson");
 const heartbeatsFile = path.join(dataDir, "heartbeats.ndjson");
@@ -140,3 +142,5 @@ export function hasSeenNonce(deviceId, nonce, timestampMs) {
   fs.writeFileSync(nonceCacheFile, JSON.stringify(nonces), "utf8");
   return false;
 }
+
+
