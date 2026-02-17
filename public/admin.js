@@ -91,22 +91,28 @@
 
   async function reverseGeocode(lat, lon) {
     if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lon))) {
+      console.log("reverseGeocode: 无效的坐标", lat, lon);
       return null;
     }
     const key = makeKey(lat, lon);
     if (addressCache.has(key)) {
-      return addressCache.get(key);
+      const cachedAddr = addressCache.get(key);
+      console.log("reverseGeocode: 使用缓存地址", key, cachedAddr);
+      return cachedAddr;
     }
 
     try {
+      console.log("reverseGeocode: 请求地址", lat, lon);
       const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`;
       const rsp = await fetch(url, {
         headers: { "Accept-Language": "zh-CN", "User-Agent": "guard-admin" }
       });
       if (!rsp.ok) {
+        console.log("reverseGeocode: HTTP错误", rsp.status);
         throw new Error(`HTTP_${rsp.status}`);
       }
       const data = await rsp.json();
+      console.log("reverseGeocode: 响应数据", data);
       
       // 提取结构化地址信息，构建更友好的地址格式
       let addr = null;
@@ -133,10 +139,11 @@
         addr = data.display_name;
       }
       
+      console.log("reverseGeocode: 解析地址", addr);
       addressCache.set(key, addr);
       return addr;
     } catch (err) {
-      console.error("reverseGeocode", err);
+      console.error("reverseGeocode错误", err);
       return null;
     }
   }
@@ -146,8 +153,11 @@
     clearTrack();
 
     if (!points || points.length < 1) {
+      console.log("drawTrack: 无轨迹点数据");
       return;
     }
+
+    console.log("drawTrack: 开始绘制轨迹，共" + points.length + "个点");
 
     const latLngs = points.map(function (p) {
       return [Number(p.lat), Number(p.lon)];
@@ -160,8 +170,10 @@
     }).addTo(map);
 
     // 先获取所有地址信息，然后再绘制标记
+    console.log("drawTrack: 开始获取地址信息");
     const addressPromises = points.map(p => reverseGeocode(p.lat, p.lon));
     const addresses = await Promise.all(addressPromises);
+    console.log("drawTrack: 地址信息获取完成", addresses);
 
     // 绘制标记并绑定地址信息
     points.forEach(function (p, i) {
@@ -179,6 +191,7 @@
       const addr = addresses[i];
       const address = addr ? "<br/>地址: " + addr : "";
       
+      console.log("drawTrack: 轨迹点" + i + "地址", addr);
       marker.bindPopup("<b>" + (p.deviceId || "-") + "</b><br/>" + t + "<br/>lat: " + p.lat + "<br/>lon: " + p.lon + address);
       pointMarkers.push(marker);
     });
@@ -188,6 +201,7 @@
     } else {
       map.fitBounds(trackLine.getBounds(), { padding: [24, 24], maxZoom: 18 });
     }
+    console.log("drawTrack: 轨迹绘制完成");
   }
 
   async function loadTrack() {
