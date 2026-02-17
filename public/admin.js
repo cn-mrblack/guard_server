@@ -107,7 +107,32 @@
         throw new Error(`HTTP_${rsp.status}`);
       }
       const data = await rsp.json();
-      const addr = data.display_name || null;
+      
+      // 提取结构化地址信息，构建更友好的地址格式
+      let addr = null;
+      if (data.address) {
+        const addressParts = [];
+        
+        // 优先提取更具体的地址信息
+        if (data.address.house_number) addressParts.push(data.address.house_number);
+        if (data.address.road) addressParts.push(data.address.road);
+        if (data.address.neighbourhood) addressParts.push(data.address.neighbourhood);
+        if (data.address.suburb) addressParts.push(data.address.suburb);
+        if (data.address.city_district) addressParts.push(data.address.city_district);
+        if (data.address.city) addressParts.push(data.address.city);
+        if (data.address.state) addressParts.push(data.address.state);
+        if (data.address.country) addressParts.push(data.address.country);
+        
+        // 如果有具体地址信息，使用结构化地址，否则使用display_name
+        if (addressParts.length > 0) {
+          addr = addressParts.join('，');
+        } else if (data.display_name) {
+          addr = data.display_name;
+        }
+      } else if (data.display_name) {
+        addr = data.display_name;
+      }
+      
       addressCache.set(key, addr);
       return addr;
     } catch (err) {
@@ -134,7 +159,7 @@
       opacity: 0.9
     }).addTo(map);
 
-    points.forEach(function (p, i) {
+    points.forEach(async function (p, i) {
       const isStart = i === 0;
       const isEnd = i === points.length - 1;
       const marker = L.circleMarker([Number(p.lat), Number(p.lon)], {
@@ -146,7 +171,18 @@
       }).addTo(map);
 
       const t = p.collectedAt || p.serverReceivedAt || "-";
-      marker.bindPopup("<b>" + (p.deviceId || "-") + "</b><br/>" + t + "<br/>lat: " + p.lat + "<br/>lon: " + p.lon);
+      // 尝试获取地址信息
+      let address = "";
+      try {
+        const addr = await reverseGeocode(p.lat, p.lon);
+        if (addr) {
+          address = "<br/>地址: " + addr;
+        }
+      } catch (err) {
+        console.error("获取地址失败", err);
+      }
+      
+      marker.bindPopup("<b>" + (p.deviceId || "-") + "</b><br/>" + t + "<br/>lat: " + p.lat + "<br/>lon: " + p.lon + address);
       pointMarkers.push(marker);
     });
 

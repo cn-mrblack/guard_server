@@ -1,1 +1,3 @@
 {"deviceId":"kv_test_dev","collectedAt":"2026-02-17T11:10:46.647Z"}
+{"deviceId":"dev_33e5f1c316774576","collectedAt":"2026-02-17T12:29:53.369318Z","batteryPct":53,"charging":false,"networkType":"WIFI","appVersion":"1.0.1","serverReceivedAt":"2026-02-17T12:29:52.245Z"}
+{"deviceId":"dev_33e5f1c316774576","collectedAt":"2026-02-17T12:30:58.572113Z","batteryPct":53,"charging":false,"networkType":"WIFI","appVersion":"1.0.1","serverReceivedAt":"2026-02-17T12:30:57.412Z"}

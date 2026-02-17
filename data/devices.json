@@ -4,5 +4,11 @@
     "secretHash": "e8bc163c82eee18733288c7d4ac636db3a6deb013ef2d37b68322be20edc45cc",
     "createdAt": "2026-02-17T11:10:46.643Z",
     "updatedAt": "2026-02-17T11:10:46.643Z"
+  },
+  {
+    "deviceId": "dev_33e5f1c316774576",
+    "secretHash": "23e49a09e3e6ef4ecb9345c56b37d5f4cc49f405021b5ced1e4c80a6ad29e880",
+    "createdAt": "2026-02-17T12:29:52.225Z",
+    "updatedAt": "2026-02-17T12:29:52.225Z"
   }
 ]

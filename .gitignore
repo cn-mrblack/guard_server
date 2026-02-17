@@ -1,5 +1,5 @@
 node_modules
 .trae
-data/
+data/*
 *.json
 *.ndjson
