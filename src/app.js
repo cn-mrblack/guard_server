@@ -227,6 +227,41 @@ app.get("/api/v1/admin/overview", requireAdmin, asyncHandler(async (req, res) =>
   });
 }));
 
+// 反向地理编码代理路由，解决CORS和请求频率限制问题
+app.get("/api/v1/geocode/reverse", asyncHandler(async (req, res) => {
+  try {
+    const { lat, lon } = req.query;
+    
+    if (!lat || !lon) {
+      return res.status(400).json({ error: "lat_and_lon_required" });
+    }
+    
+    // 验证坐标格式
+    if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lon))) {
+      return res.status(400).json({ error: "invalid_coordinates" });
+    }
+    
+    // 调用Nominatim服务
+    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`;
+    const rsp = await fetch(url, {
+      headers: {
+        "Accept-Language": "zh-CN",
+        "User-Agent": "guard-admin"
+      }
+    });
+    
+    if (!rsp.ok) {
+      return res.status(rsp.status).json({ error: `nominatim_error_${rsp.status}` });
+    }
+    
+    const data = await rsp.json();
+    res.json(data);
+  } catch (err) {
+    console.error("geocode reverse error", err);
+    res.status(500).json({ error: "internal_server_error" });
+  }
+}));
+
 app.use((err, _req, res, _next) => {
   console.error(err);
   res.status(500).json({ error: "internal_server_error" });

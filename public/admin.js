@@ -103,10 +103,9 @@
 
     try {
       console.log("reverseGeocode: 请求地址", lat, lon);
-      const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`;
-      const rsp = await fetch(url, {
-        headers: { "Accept-Language": "zh-CN", "User-Agent": "guard-admin" }
-      });
+      // 调用我们自己的服务器路由，而不是直接调用Nominatim服务
+      const url = `/api/v1/geocode/reverse?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`;
+      const rsp = await fetch(url);
       if (!rsp.ok) {
         console.log("reverseGeocode: HTTP错误", rsp.status);
         throw new Error(`HTTP_${rsp.status}`);
@@ -225,17 +224,12 @@
       });
       await drawTrack(points);
       if (points.length) {
-        const startPoint = points[0];
-        const endPoint = points[points.length - 1];
-        const startTime = startPoint.collectedAt || startPoint.serverReceivedAt || "-";
-        const endTime = endPoint.collectedAt || endPoint.serverReceivedAt || "-";
-        const [startAddr, endAddr] = await Promise.all([
-          reverseGeocode(startPoint.lat, startPoint.lon),
-          reverseGeocode(endPoint.lat, endPoint.lon)
-        ]);
-        const startSuffix = startAddr ? ` (${startAddr})` : "";
-        const endSuffix = endAddr ? ` (${endAddr})` : "";
-        trackInfoEl.textContent = `设备 ${deviceId} 的轨迹点 ${points.length}个，开始 ${startTime}${startSuffix}，结束 ${endTime}${endSuffix}`;
+        // 只解析最新的地址信息（最后一个轨迹点）
+        const latestPoint = points[points.length - 1];
+        const latestTime = latestPoint.collectedAt || latestPoint.serverReceivedAt || "-";
+        const latestAddr = await reverseGeocode(latestPoint.lat, latestPoint.lon);
+        const latestSuffix = latestAddr ? ` (${latestAddr})` : "";
+        trackInfoEl.textContent = `设备 ${deviceId} 的最新位置：${latestTime}${latestSuffix}`;
       } else {
         trackInfoEl.textContent = "该设备无位置数据";
       }
